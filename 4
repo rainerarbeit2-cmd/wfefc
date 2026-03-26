@@ -1,0 +1,299 @@
+-- UI Library
+local Library = {}
+
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local function create(class, properties)
+    local instance = Instance.new(class)
+    for prop, value in pairs(properties) do
+        instance[prop] = value
+    end
+    return instance
+end
+
+local function tween(instance, properties, duration)
+    local tweenInfo = TweenInfo.new(duration or 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(instance, tweenInfo, properties)
+    tween:Play()
+    return tween
+end
+
+function Library:CreateWindow(title)
+    local window = {
+        Tabs = {},
+        CurrentTab = nil
+    }
+    
+    local screenGui = create("ScreenGui", {
+        Name = "UILibrary",
+        Parent = game:GetService("CoreGui"),
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        ResetOnSpawn = false
+    })
+    
+    local mainFrame = create("Frame", {
+        Name = "Main",
+        Parent = screenGui,
+        BackgroundColor3 = Color3.fromRGB(15, 18, 25),
+        BorderSizePixel = 0,
+        Position = UDim2.new(0.5, -350, 0.5, -240),
+        Size = UDim2.new(0, 700, 0, 480)
+    })
+    
+    local titleLabel = create("TextLabel", {
+        Name = "Title",
+        Parent = mainFrame,
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 20, 0, 15),
+        Size = UDim2.new(0, 150, 0, 30),
+        Font = Enum.Font.GothamBold,
+        Text = title or "RUST EXTERNAL",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextSize = 16,
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
+    
+    local leftSidebar = create("Frame", {
+        Name = "LeftSidebar",
+        Parent = mainFrame,
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 60),
+        Size = UDim2.new(0, 150, 1, -60)
+    })
+    
+    local sidebarList = create("UIListLayout", {
+        Parent = leftSidebar,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 2)
+    })
+    
+    create("UIPadding", {
+        Parent = leftSidebar,
+        PaddingLeft = UDim.new(0, 20)
+    })
+    
+    local topTabContainer = create("Frame", {
+        Name = "TopTabs",
+        Parent = mainFrame,
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 200, 0, 30),
+        Size = UDim2.new(1, -220, 0, 40)
+    })
+    
+    local topTabList = create("UIListLayout", {
+        Parent = topTabContainer,
+        FillDirection = Enum.FillDirection.Horizontal,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 30)
+    })
+    
+    local contentContainer = create("ScrollingFrame", {
+        Name = "Content",
+        Parent = mainFrame,
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 200, 0, 80),
+        Size = UDim2.new(1, -220, 1, -90),
+        ScrollBarThickness = 4,
+        ScrollBarImageColor3 = Color3.fromRGB(255, 100, 150),
+        BorderSizePixel = 0,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y
+    })
+    
+    local contentList = create("UIListLayout", {
+        Parent = contentContainer,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 15)
+    })
+    
+    create("UIPadding", {
+        Parent = contentContainer,
+        PaddingTop = UDim.new(0, 10),
+        PaddingLeft = UDim.new(0, 20)
+    })
+    
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+    
+    mainFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+        end
+    end)
+    
+    mainFrame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            mainFrame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+    
+    function window:CreateTab(name)
+        local tab = {
+            Name = name,
+            Active = false,
+            SubTabs = {},
+            CurrentSubTab = nil
+        }
+        
+        local tabButton = create("TextButton", {
+            Name = name,
+            Parent = leftSidebar,
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 35),
+            Font = Enum.Font.Gotham,
+            Text = "  " .. name,
+            TextColor3 = Color3.fromRGB(80, 90, 120),
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            AutoButtonColor = false
+        })
+        
+        tabButton.MouseButton1Click:Connect(function()
+            for _, t in pairs(window.Tabs) do
+                t.Active = false
+                t.Button.TextColor3 = Color3.fromRGB(80, 90, 120)
+                
+                for _, st in pairs(t.SubTabs) do
+                    st.Button.Visible = false
+                    st.Content.Visible = false
+                end
+            end
+            
+            tab.Active = true
+            tween(tabButton, {TextColor3 = Color3.fromRGB(255, 255, 255)})
+            
+            for _, st in pairs(tab.SubTabs) do
+                st.Button.Visible = true
+            end
+            
+            if tab.SubTabs[1] then
+                tab.SubTabs[1].Button.MouseButton1Click:Fire()
+            end
+            
+            window.CurrentTab = tab
+        end)
+        
+        tabButton.MouseEnter:Connect(function()
+            if not tab.Active then
+                tween(tabButton, {TextColor3 = Color3.fromRGB(150, 160, 180)})
+            end
+        end)
+        
+        tabButton.MouseLeave:Connect(function()
+            if not tab.Active then
+                tween(tabButton, {TextColor3 = Color3.fromRGB(80, 90, 120)})
+            end
+        end)
+        
+        tab.Button = tabButton
+        
+        function tab:CreateSubTab(subName)
+            local subTab = {
+                Name = subName,
+                Active = false,
+                Elements = {}
+            }
+            
+            local subTabButton = create("TextButton", {
+                Name = subName,
+                Parent = topTabContainer,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(0, 100, 1, 0),
+                Font = Enum.Font.Gotham,
+                Text = subName,
+                TextColor3 = Color3.fromRGB(80, 90, 120),
+                TextSize = 13,
+                AutoButtonColor = false,
+                Visible = false
+            })
+            
+            local underline = create("Frame", {
+                Name = "Underline",
+                Parent = subTabButton,
+                BackgroundColor3 = Color3.fromRGB(255, 100, 150),
+                BorderSizePixel = 0,
+                Position = UDim2.new(0, 0, 1, -2),
+                Size = UDim2.new(1, 0, 0, 2),
+                Visible = false
+            })
+            
+            local subTabContent = create("Frame", {
+                Name = subName .. "Content",
+                Parent = contentContainer,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                Visible = false
+            })
+            
+            local subContentList = create("UIListLayout", {
+                Parent = subTabContent,
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Padding = UDim.new(0, 15)
+            })
+            
+            subTabButton.MouseButton1Click:Connect(function()
+                for _, st in pairs(tab.SubTabs) do
+                    st.Active = false
+                    st.Button.TextColor3 = Color3.fromRGB(80, 90, 120)
+                    st.Button:FindFirstChild("Underline").Visible = false
+                    st.Content.Visible = false
+                end
+                
+                subTab.Active = true
+                tween(subTabButton, {TextColor3 = Color3.fromRGB(255, 255, 255)})
+                underline.Visible = true
+                subTabContent.Visible = true
+                tab.CurrentSubTab = subTab
+            end)
+            
+            subTabButton.MouseEnter:Connect(function()
+                if not subTab.Active then
+                    tween(subTabButton, {TextColor3 = Color3.fromRGB(150, 160, 180)})
+                end
+            end)
+            
+            subTabButton.MouseLeave:Connect(function()
+                if not subTab.Active then
+                    tween(subTabButton, {TextColor3 = Color3.fromRGB(80, 90, 120)})
+                end
+            end)
+            
+            subTab.Button = subTabButton
+            subTab.Content = subTabContent
+            
+            table.insert(tab.SubTabs, subTab)
+            
+            return subTab
+        end
+        
+        table.insert(window.Tabs, tab)
+        
+        if #window.Tabs == 1 then
+            tabButton.MouseButton1Click:Fire()
+        end
+        
+        return tab
+    end
+    
+    return window
+end
+
+return Library
