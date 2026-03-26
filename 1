@@ -1,0 +1,198 @@
+-- UI Library
+local Library = {}
+
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local function create(class, properties)
+    local instance = Instance.new(class)
+    for prop, value in pairs(properties) do
+        instance[prop] = value
+    end
+    return instance
+end
+
+local function tween(instance, properties, duration)
+    local tweenInfo = TweenInfo.new(duration or 0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(instance, tweenInfo, properties)
+    tween:Play()
+    return tween
+end
+
+function Library:CreateWindow(options)
+    local window = {
+        Tabs = {},
+        CurrentTab = nil
+    }
+    
+    local screenGui = create("ScreenGui", {
+        Name = "UILibrary",
+        Parent = game:GetService("CoreGui"),
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        ResetOnSpawn = false
+    })
+    
+    local mainFrame = create("Frame", {
+        Name = "Main",
+        Parent = screenGui,
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BorderSizePixel = 0,
+        Position = UDim2.new(0.5, -300, 0.5, -200),
+        Size = UDim2.new(0, 600, 0, 400)
+    })
+    
+    create("UICorner", {
+        Parent = mainFrame,
+        CornerRadius = UDim.new(0, 8)
+    })
+    
+    local tabContainer = create("Frame", {
+        Name = "TabContainer",
+        Parent = mainFrame,
+        BackgroundColor3 = Color3.fromRGB(10, 10, 10),
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 150, 1, 0)
+    })
+    
+    create("UICorner", {
+        Parent = tabContainer,
+        CornerRadius = UDim.new(0, 8)
+    })
+    
+    local tabList = create("UIListLayout", {
+        Parent = tabContainer,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 5)
+    })
+    
+    create("UIPadding", {
+        Parent = tabContainer,
+        PaddingTop = UDim.new(0, 10),
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 10),
+        PaddingBottom = UDim.new(0, 10)
+    })
+    
+    local contentContainer = create("Frame", {
+        Name = "ContentContainer",
+        Parent = mainFrame,
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 160, 0, 10),
+        Size = UDim2.new(1, -170, 1, -20)
+    })
+    
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+    
+    mainFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+        end
+    end)
+    
+    mainFrame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            mainFrame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+    
+    function window:CreateTab(name)
+        local tab = {
+            Name = name,
+            Active = false,
+            Elements = {}
+        }
+        
+        local tabButton = create("TextButton", {
+            Name = name,
+            Parent = tabContainer,
+            BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 0, 35),
+            Font = Enum.Font.GothamBold,
+            Text = name,
+            TextColor3 = Color3.fromRGB(180, 180, 180),
+            TextSize = 14,
+            AutoButtonColor = false
+        })
+        
+        create("UICorner", {
+            Parent = tabButton,
+            CornerRadius = UDim.new(0, 6)
+        })
+        
+        local tabContent = create("Frame", {
+            Name = name .. "Content",
+            Parent = contentContainer,
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 1, 0),
+            Visible = false
+        })
+        
+        tabButton.MouseButton1Click:Connect(function()
+            for _, t in pairs(window.Tabs) do
+                t.Active = false
+                t.Button.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+                t.Button.TextColor3 = Color3.fromRGB(180, 180, 180)
+                t.Content.Visible = false
+            end
+            
+            tab.Active = true
+            tween(tabButton, {
+                BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+            })
+            tween(tabButton, {
+                TextColor3 = Color3.fromRGB(255, 255, 255)
+            })
+            tabContent.Visible = true
+            window.CurrentTab = tab
+        end)
+        
+        tabButton.MouseEnter:Connect(function()
+            if not tab.Active then
+                tween(tabButton, {
+                    BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                })
+            end
+        end)
+        
+        tabButton.MouseLeave:Connect(function()
+            if not tab.Active then
+                tween(tabButton, {
+                    BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+                })
+            end
+        end)
+        
+        tab.Button = tabButton
+        tab.Content = tabContent
+        
+        table.insert(window.Tabs, tab)
+        
+        if #window.Tabs == 1 then
+            tabButton.MouseButton1Click:Fire()
+        end
+        
+        return tab
+    end
+    
+    return window
+end
+
+return Library
